@@ -13,7 +13,7 @@ void exit_shell() {
 }
 
 void display_help() {
-    printf("Available commands:\n");
+printf("Available commands:\n");
     printf("help: Display this help message\n");
     printf("exit: Exit the shell\n");
     printf("wait: Wait for any child process to terminate\n");
@@ -21,48 +21,59 @@ void display_help() {
     printf("cd: Change the current working directory\n");
 }
 
+void wait_for_child_process() {
+    int status;
+    pid_t pid = wait(&status);
+    printf("Process %d terminated with status %d\n", pid, status);
+}
+
+void print_current_working_directory() {
+    char path[MAX_PATH_LENGTH];
+    if (getcwd(path, MAX_PATH_LENGTH) != NULL) {
+        printf("%s\n", path);
+    } else {
+        printf("Error: Could not get current working directory\n");
+    }
+}
+
+void change_directory(char *directory) {
+    if (chdir(directory) == 0) {
+        printf("Changed directory to %s\n", directory);
+    } else {
+        printf("Error: Could not change directory to %s\n", directory);
+    }
+}
+
+void process_command(char *command, char *argument) {
+    if (strcmp(command, "help") == 0) {
+        display_help();
+    } else if (strcmp(command, "exit") == 0) {
+        exit_shell();
+    } else if (strcmp(command, "wait") == 0) {
+        wait_for_child_process();
+    } else if (strcmp(command, "pwd") == 0) {
+        print_current_working_directory();
+    } else if (strcmp(command, "cd") == 0) {
+        change_directory(argument);
+    } else {
+        printf("Error: Unknown command\n");
+    }
+}
+
 int main() {
     char input[MAX_INPUT_LENGTH];
-    char *token;
+    char *command, *argument;
 
     while (1) {
         printf(">> ");
         fgets(input, MAX_INPUT_LENGTH, stdin);
 
         // tokenize input string
-        token = strtok(input, " \n");
+        command = strtok(input, " \n");
+        argument = strtok(NULL, " \n");
 
-        if (token != NULL) {
-            if (strcmp(token, "help") == 0) {
-                display_help();
-            } else if (strcmp(token, "exit") == 0) {
-                exit_shell();
-            } else if (strcmp(token, "wait") == 0) {
-                // wait for any child process to terminate
-                int status;
-                pid_t pid = wait(&status);
-                printf("Process %d terminated with status %d\n", pid, status);
-            } else if (strcmp(token, "pwd") == 0) {
-                // print current working directory
-                char path[MAX_PATH_LENGTH];
-                if (getcwd(path, MAX_PATH_LENGTH) != NULL) {
-                    printf("%s\n", path);
-                } else {
-                    printf("Error: Could not get current working directory\n");
-                }
-            } else if (strcmp(token, "cd") == 0) {
-                // change current working directory
-                token = strtok(NULL, " \n");
-                if (token != NULL) {
-                    if (chdir(token) == 0) {
-                        printf("Changed directory to %s\n", token);
-                    } else {
-                        printf("Error: Could not change directory to %s\n", token);
-                    }
-                } else {
-                    printf("Error: No directory specified\n");
-                }
-            } 
+        if (command != NULL) {
+            process_command(command, argument);
         }
     }
 
