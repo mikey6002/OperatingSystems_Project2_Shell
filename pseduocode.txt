@@ -1,0 +1,151 @@
+(Code to borrow) 
+//Program 5.1 Parent/child processes communicating via a pipe.
+//Interprocess Communications textbook 
+
+//Program 3.9 The parent process.
+//Interprocess Communications textbook 
+
+//Program 3.11 A parent program using waitpid. 
+//Interprocess Communications textbook 
+
+void shell_start(){
+	print("Welcome to my shell);
+	sleep(1)
+	clear_board();
+}
+
+
+int input(){
+	char * buffer
+	if(strlen(buffer)!=0){
+			add_something(buffer);
+			strcpy(str,buf);
+			return 0;
+}else{
+		return 1;
+}
+
+
+void print_current_directory(){
+
+	char cwd [6969];
+getcwd(cwd.sizeof(cwd));
+print(Dir,cwd);
+
+
+void execute(char **parser){
+	pid_t pid =fork();
+
+	if (pid == false){
+			print( failed);
+
+}else if (pid ==true){
+		if (executevp(parser[0] ,parsed) <0){
+				print(could not execute the command);
+		}
+	exit(0);
+}else{
+	wait(null);
+		return;
+	}
+}
+
+
+void executepipes(char** parsed, char ** parsedpipe){
+		int pipfd[2];
+pid_t p1, p2;
+
+if(pipe(pipefd)<0){
+		print( pipe couldn;t be initiated);
+}
+
+p1 = fork();
+if(p1<0){
+		print(couldn't fork);
+}
+if(p1 is 0){
+		close(pipfd[0]);
+	dup(pipefd[1],STDOUT_FILENO);
+	close(pipefd[1]);
+
+	if(execvp(parser[0],parsed)<0){
+		print(could not execute command);
+}else{
+	p2 = fork();
+if(p2<0){
+	print(cant fork);
+}
+
+if(p2 is 0){
+	closepipfd[1])
+	dup2(pipefd[0],STDIN_FILENO);
+	close(pipefd[0]);
+	if(excvp(parsedpipe[0].parsedpipe) <0) {
+			print(count not execute command);
+}
+else{
+wait(null);
+
+void helper(){
+	printf("This is my shell helper);
+	print(insert more instructions.....);
+
+	}
+
+int builtins(char **parsed){
+		if(strcmp, "help") is true ){
+				display_help();
+		else if(strcmp, "exit" is true){
+				exit_shell();
+
+		else if(strcmp, "wait" is true){
+				wait();
+
+		else if(strcmp, "pwd" is true){
+				 pwd();
+
+		else if(strcmp, "cd" is true){
+				change_directory();
+}
+
+int parsePipe(char * str, char ** strpiped){
+		int i;
+	for (int i =0; i<2; i++){
+			strpiped[i] = strsep(*str, "||");
+			if(strpiped[i] == flase){
+					break;
+			}
+	if(strpiped[1] == false){
+			return 0;
+}
+else{
+	return 1;
+}
+}
+
+int processStrings( char *str, char ** parsed, char ** parsedpipe){
+		char * stripied[2];
+		int piped =0;
+	if (piped){
+			parseSpace(strpiped[0],parsed);
+			parseSpace(strpiped[1],parsedpipe);
+	}else{
+		parseSpace(str,parsed);
+	}
+	if(cmdHandler(parsed))
+		return 0;
+	else
+		return 1+piped;
+]
+
+while(running){
+		shell_start();
+	if(input(inputstring))
+		execFlag = processString(inputstring,parsedargs,parsedargspiped);
+	if(execFlag ==1)
+			execargs(parsedArgs);
+if(execFlag==2){
+	execargspiped(parsedargs,parseargspiped);
+}
+return 0;
+}
