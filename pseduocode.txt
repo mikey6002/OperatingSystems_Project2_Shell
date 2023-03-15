@@ -8,6 +8,13 @@
 //Program 3.11 A parent program using waitpid. 
 //Interprocess Communications textbook 
 
+
+(More code to borrow)
+//Bryant OHoward Chapter 8 forks() waitpid()
+//Even has simple shell to [borrow pg 754]
+//pg 909 redirection
+//pipes 937
+
 void shell_start(){
 	print("Welcome to my shell);
 	sleep(1)
