@@ -46,6 +46,7 @@ void print_current_working_directory() {
     }
 }
 //changes working directory
+//borrowed from slides
 void change_directory(char *directory) {
     if (chdir(directory) == 0) {
         printf("Changed directory to %s\n", directory);
