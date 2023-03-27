@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+
 
 #define MAX_INPUT_LENGTH 100
 #define MAX_PATH_LENGTH 1024
@@ -15,8 +17,8 @@ void exit_shell() {
 
 //function that displays help with user type help in command line
 void display_help() {
-printf("Hello and welcome to the help page this is meant to help you work around the shell\n");
-printf("Available commands:\n");
+    printf("Hello and welcome to the help page this is meant to help you work around the shell\n");
+    printf("Available commands:\n");
     printf("help: Displays this help message\n");
     printf("exit: Exit the shell\n");
     printf("wait: Wait for any child process to terminate\n");
@@ -66,10 +68,30 @@ void process_command(char *command, char *argument) {
         print_current_working_directory();
     } else if (strcmp(command, "cd") == 0) {
         change_directory(argument);
-    } else {
-        printf("Error: Unknown command\n");
+    } 
+    else {
+        
     }
 }
+
+void find_and_run_wc() {
+    char *path_env = getenv("PATH");
+    char *path = strtok(path_env, ":");
+
+    while (path != NULL) {
+        char wc_path[MAX_PATH_LENGTH];
+        snprintf(wc_path, MAX_PATH_LENGTH, "%s/wc", path);
+        if (access(wc_path, X_OK) == 0) {
+            printf("Found wc at %s\n", wc_path);
+            char *argv[] = {wc_path, NULL};
+            execv(wc_path, argv);
+        }
+        path = strtok(NULL, ":");
+    }
+
+    printf("Error: Could not find wc in PATH\n");
+}
+
 
 int main() {
     printf("Hello and welcome to my shell\n");
