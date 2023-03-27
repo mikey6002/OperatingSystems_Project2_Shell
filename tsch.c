@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #define MAXLINE 8192
 #define MAXARGS 128
@@ -19,10 +20,10 @@ char *Fgets(char *ptr, int n, FILE *stream);
 
 int main()
 {
+    printf("Hello and Welcome to my Shell!");
     char cmdline[MAXLINE];
     while (1)
     {
-        printf("Hello and Welcome to my Shell!");
         printf("> ");
         fflush(stdout);
 
@@ -40,11 +41,26 @@ void eval(char *cmdline)
     char buf[MAXLINE];
     int bg;
     pid_t pid;
+    int fd_in, fd_out;
 
     strcpy(buf, cmdline);
     bg = parseline(buf, argv);
     if (argv[0] == NULL)
         return;
+
+    // check for input redirection
+    if ((fd_in = open(argv[1], O_RDONLY)) != -1) {
+        dup2(fd_in, STDIN_FILENO);
+        close(fd_in);
+        argv[1] = NULL;
+    }
+
+    // check for output redirection
+    if ((fd_out = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1) {
+        dup2(fd_out, STDOUT_FILENO);
+        close(fd_out);
+        argv[2] = NULL;
+    }
 
     if (!builtin_command(argv))
     {
@@ -73,8 +89,10 @@ void eval(char *cmdline)
 
 int builtin_command(char **argv)
 {
-    if (!strcmp(argv[0], "quit"))
-        exit(0);
+    if (!strcmp(argv[0], "quit")){
+        printf("Exiting");
+        exit(1);
+    }
     if (!strcmp(argv[0], "help"))
     {
         printf("Type quit to exit the shell.\n");
