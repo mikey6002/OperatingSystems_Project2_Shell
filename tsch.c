@@ -9,6 +9,7 @@
 #define MAXLINE 8192
 #define MAXARGS 128
 
+//https://man7.org/linux/man-pages/man7/environ.7.html
 extern char **environ;
 
 // Most of the code was from Textbook Bryant Ohallaron  pg 755
@@ -69,7 +70,7 @@ void eval(char *cmdline)
         close(fd_out);
         argv[2] = NULL;
     }
-
+//textbook only modified to fit project 
     if (!builtin_command(argv))
     {
         if ((pid = fork()) == 0)
@@ -94,7 +95,7 @@ void eval(char *cmdline)
     }
     return;
 }
-
+//textbook only modified to fit project 
 int builtin_command(char **argv)
 {
     if (!strcmp(argv[0], "quit")){
