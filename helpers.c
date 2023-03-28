@@ -1,60 +1,63 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include "helpers.h"
 
-int parse(char* line, char*** _args, char* delim) {
-    char **args = malloc(sizeof(char *));
-    if (args == NULL) {
-        perror("malloc");
-        return -1;
+// COPY THIS PARSE FUNCTION INTO THE "helpers.c" FILE AND DELETE THE PREVIOUS PARSE FUNCTION
+// THIS VERSION SHOULD WORK PROPERLY
+// MAKE SURE TO UPDATE THE "helpers.h" HEADER FILE
+
+char ** parse(char*line,char*delim){
+
+    char**array=malloc(sizeof(char*));
+    *array=NULL;
+    int n = 0;
+
+    char*buf = strtok(line,delim);
+
+    if (buf == NULL){
+        free(array);
+        array=NULL;
+        return array;
     }
 
-    int argc = 0;
-    char *token = strtok(line, delim);
-    while (token != NULL) {
-        args[argc++] = token;
-        char **tmp = realloc(args, sizeof(char *) * (argc + 1));
-        if (tmp == NULL) {
-            perror("realloc");
-            return -1;
+    while(buf!=NULL ){
+
+        char**temp = realloc(array,(n+2)*sizeof(char*));
+
+        if(temp==NULL){
+            free(array);
+            array=NULL;
+            return array;
         }
-        args = tmp;
-        token = strtok(NULL, delim);
+
+        array=temp;
+        temp[n++]=buf;
+        temp[n]=NULL;
+
+        buf = strtok(NULL,delim);
+
     }
-    args[argc] = NULL;
 
-    *_args = args;
-
-    return argc;
+    return array;
 }
 
-int find_special(char **args, char *special) {
+//NEW TEST MAIN THAT WORKS WITH THE PARSE FUNCTION
+/*
+int main(){
+
+    char _line[1000] = "a line of text\n";
+    char * line = strdup(_line);
+    char ** array = parse(line," \n");
+
+    if (array==NULL)
+        exit(1);
+
     int i = 0;
-    while (args[i] != NULL) {
-        if (strcmp(args[i], special) == 0) {
-            return i;
-        }
-        i++;
-    }
-    return -1;
-}
+    while (array[i]!=NULL)
+        printf("%s\n",array[i++]);
 
-FILE *getInput(int argc, char* argv[]) {
-    if (argc == 1) {
-        // Read from stdin
-        return stdin;
-    } else if (argc == 2) {
-        // Read from file
-        FILE *fp = fopen(argv[1], "r");
-        if (fp == NULL) {
-            perror("fopen");
-            return NULL;
-        }
-        return fp;
-    } else {
-        printf("Usage: ./tsch [filename]\n");
-        return NULL;
-    }
+    free(array);
+    free(line);
+
 }
+*/

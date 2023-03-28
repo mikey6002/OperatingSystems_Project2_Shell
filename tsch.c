@@ -49,14 +49,22 @@ void eval(char *cmdline)
         return;
 
     // check for input redirection
-    if ((fd_in = open(argv[1], O_RDONLY)) != -1) {
+    if (argv[1] != NULL && (fd_in = open(argv[1], O_RDONLY)) == -1) {
+        fprintf(stderr, "Failed to open input file %s\n", argv[1]);
+        return;
+    }
+    if (argv[1] != NULL) {
         dup2(fd_in, STDIN_FILENO);
         close(fd_in);
         argv[1] = NULL;
     }
 
     // check for output redirection
-    if ((fd_out = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1) {
+    if (argv[2] != NULL && (fd_out = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
+        fprintf(stderr, "Failed to open output file %s\n", argv[2]);
+        return;
+    }
+    if (argv[2] != NULL) {
         dup2(fd_out, STDOUT_FILENO);
         close(fd_out);
         argv[2] = NULL;
