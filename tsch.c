@@ -8,6 +8,7 @@
 
 #define MAXLINE 8192
 #define MAXARGS 128
+#define MAXJOBS 10
 
 //https://man7.org/linux/man-pages/man7/environ.7.html
 extern char **environ;
@@ -18,6 +19,10 @@ int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
 void unix_error(char *msg);
 char *Fgets(char *ptr, int n, FILE *stream);
+
+// array to store the PIDs of all the background jobs
+pid_t bg_jobs[MAXJOBS];
+int num_jobs = 0;
 
 int main()
 {
@@ -90,7 +95,8 @@ void eval(char *cmdline)
         }
         else
         {
-            printf("%d %s", pid, cmdline);
+            bg_jobs[num_jobs++] = pid;
+            printf("[%d] %d\n", num_jobs, pid);
         }
     }
     return;
@@ -102,6 +108,17 @@ int builtin_command(char **argv)
         printf("Exiting");
         exit(1);
     }
+    if (!strcmp(argv[0], "wait")){
+        int i;
+        for (i = 0; i < num_jobs; i++)
+        {
+            waitpid(bg_jobs[i], NULL, 0); // wait for the background job to terminate
+            printf("[%d] Done\t %d\n", i+1, bg_jobs[i]); // print the job number and PID to the console
+        }
+        num_jobs = 0; // reset the number of background jobs to 0
+        return 1;
+    }
+    
     if (!strcmp(argv[0], "help"))
     {
         printf("Type quit to exit the shell.\n");
