@@ -20,6 +20,8 @@ int builtin_command(char **argv);
 void unix_error(char *msg);
 char *Fgets(char *ptr, int n, FILE *stream);
 
+
+
 // array to store the PIDs of all the background jobs
 pid_t bg_jobs[MAXJOBS];
 int num_jobs = 0;
@@ -118,7 +120,6 @@ int builtin_command(char **argv)
         num_jobs = 0; // reset the number of background jobs to 0
         return 1;
     }
-    
     if (!strcmp(argv[0], "help"))
     {
         printf("Type quit to exit the shell.\n");
@@ -126,6 +127,7 @@ int builtin_command(char **argv)
         printf("The following are built in:\n");
         printf("cd [dir] -- change the current working directory\n");
         printf("pwd -- print the current working directory\n");
+        printf("wait-- to wait for all background commands to teriminate before next command\n");
         printf("help -- display this help message\n");
         return 1;
     }
