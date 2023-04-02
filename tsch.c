@@ -47,10 +47,10 @@ void eval(char *cmdline)
     char *commands[MAXARGS][MAXARGS]; // array of arrays of strings
     char buf[MAXLINE];
     int bg, i, j, status;
-    pid_t pid, wpid;
+    pid_t pid;
     int num_commands = 0;
     int pipefds[MAXARGS][2];
-    int fd_in = STDIN_FILENO, fd_out;
+    //int fd_in = STDIN_FILENO, fd_out;
 
     strcpy(buf, cmdline);
     bg = parseline(buf, commands[0]);
@@ -82,7 +82,7 @@ void eval(char *cmdline)
         if ((pid = fork()) == 0) {
             // redirect input
             if (i == 0 && bg == 0) {
-                fd_in = STDIN_FILENO;
+              //  fd_in = STDIN_FILENO;
             } else if (i > 0) {
                 dup2(pipefds[i-1][0], STDIN_FILENO);
                 close(pipefds[i-1][0]);
@@ -90,7 +90,7 @@ void eval(char *cmdline)
 
             // redirect output
             if (i == num_commands-1 && commands[i][0] != NULL && commands[i+1][0] == NULL) {
-                fd_out = STDOUT_FILENO;
+               // fd_out = STDOUT_FILENO;
             } else if (i < num_commands-1) {
                 dup2(pipefds[i][1], STDOUT_FILENO);
                 close(pipefds[i][1]);
@@ -112,7 +112,7 @@ void eval(char *cmdline)
     // wait for the last child process to finish
     if (!bg) {
         do {
-            wpid = waitpid(pid, &status, WUNTRACED);
+            waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     } else {
         bg_jobs[num_jobs++] = pid;
