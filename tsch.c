@@ -10,10 +10,11 @@
 #define MAXARGS 128
 #define MAXJOBS 10
 
-//https://man7.org/linux/man-pages/man7/environ.7.html
 extern char **environ;
 
-// Most of the code was from Textbook Bryant Ohallaron  pg 755
+pid_t bg_jobs[MAXJOBS];
+int num_jobs = 0;
+
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
@@ -21,13 +22,9 @@ void unix_error(char *msg);
 char *Fgets(char *ptr, int n, FILE *stream);
 
 
-// array to store the PIDs of all the background jobs
-pid_t bg_jobs[MAXJOBS];
-int num_jobs = 0;
-
 int main()
 {
-    printf("Hello and Welcome to my Shell!");
+    printf("Hello and Welcome to my Shell!\n");
     char cmdline[MAXLINE];
     while (1)
     {
@@ -44,97 +41,130 @@ int main()
 
 void eval(char *cmdline)
 {
-    char *commands[MAXARGS][MAXARGS]; // array of arrays of strings
+    char *commands[MAXARGS];
     char buf[MAXLINE];
-    int bg, i, j, status;
+    int bg, i, status, num_cmds = 0, pipefd[2];
     pid_t pid;
-    int num_commands = 0;
-    int pipefds[MAXARGS][2];
-    //int fd_in = STDIN_FILENO, fd_out;
 
     strcpy(buf, cmdline);
-    bg = parseline(buf, commands[0]);
-    if (commands[0][0] == NULL)
+    bg = parseline(buf, commands);
+    if (commands[0] == NULL)
         return;
 
-    // tokenize commands on pipe
-    for (i = 0; commands[i] != NULL && commands[i][0] != NULL; i++) {
-        num_commands++;
-        for (j = 0; commands[i][j] != NULL; j++) {
-            if (strcmp(commands[i][j], "|") == 0) {
-                commands[i][j] = NULL; // end current command
-                commands[i+1][0] = commands[i][j+1]; // start next command
-                commands[i][j+1] = NULL;
+    if (builtin_command(commands))
+        return;
+
+    // parse command line for multiple commands separated by pipes
+    char *cmd_ptrs[MAXARGS];
+    cmd_ptrs[num_cmds++] = commands[0];
+    for (i = 1; commands[i] != NULL; i++)
+    {
+        if (strcmp(commands[i], "|") == 0)
+        {
+            commands[i] = NULL;
+            cmd_ptrs[num_cmds++] = commands[i+1];
+        }
+        else if (strcmp(commands[i], ">") == 0)
+        {
+            commands[i] = NULL;
+            int fd = open(commands[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd == -1) {
+                fprintf(stderr, "Error opening file %s for writing\n", commands[i+1]);
+                return;
             }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+        }
+        else if (strcmp(commands[i], "<") == 0)
+        {
+            commands[i] = NULL;
+            int fd = open(commands[i+1], O_RDONLY);
+            if (fd == -1) {
+                fprintf(stderr, "Error opening file %s for reading\n", commands[i+1]);
+                return;
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
         }
     }
 
-    if(builtin_command(commands[0])){
-      return;
-    }
-
-    // create the pipes
-    for (i = 0; i < num_commands-1; i++)
-        pipe(pipefds[i]);
-
-    // execute the commands
-    for (i = 0; i < num_commands; i++) {
-        if ((pid = fork()) == 0) {
-            // redirect input
-            if (i == 0 && bg == 0) {
-              //  fd_in = STDIN_FILENO;
-            } else if (i > 0) {
-                dup2(pipefds[i-1][0], STDIN_FILENO);
-                close(pipefds[i-1][0]);
+    int fd_in = STDIN_FILENO;
+    for (i = 0; i < num_cmds; i++)
+    {
+        // create pipe for current command
+        if (i < num_cmds - 1)
+        {
+            if (pipe(pipefd) == -1)
+            {
+                fprintf(stderr, "Pipe failed\n");
+                return;
             }
+        }
 
-            // redirect output
-            if (i == num_commands-1 && commands[i][0] != NULL && commands[i+1][0] == NULL) {
-               // fd_out = STDOUT_FILENO;
-            } else if (i < num_commands-1) {
-                dup2(pipefds[i][1], STDOUT_FILENO);
-                close(pipefds[i][1]);
+        // create child process for current command
+        if ((pid = fork()) == 0)
+        {
+            if (i < num_cmds - 1)
+            {
+                // connect output of current process to input of next process
+                dup2(pipefd[1], STDOUT_FILENO);
+                close(pipefd[0]);
+                close(pipefd[1]);
+            }
+            if (fd_in != STDIN_FILENO)
+            {
+                // connect input of current process to output of previous process
+                dup2(fd_in, STDIN_FILENO);
+                close(fd_in);
             }
 
             // execute command
-            execvp(commands[i][0], commands[i]);
-            perror("execvp");
-            exit(EXIT_FAILURE);
+            char* path = getenv("PATH");
+            char* p = strtok(path, ":");
+            char prog[MAXARGS];
+            while (p != NULL) {
+                sprintf(prog, "%s/%s", p, cmd_ptrs[i]); 
+                execve(prog, commands, environ);
+                p = strtok(NULL, ":");
+            }
+            printf("%s: Command not found\n", cmd_ptrs[i]);
+            exit(0);
         }
-    }
 
-    // close all pipes
-    for (i = 0; i < num_commands-1; i++) {
-        close(pipefds[i][0]);
-        close(pipefds[i][1]);
-    }
+        // close pipes in parent process
+        if (i < num_cmds - 1)
+        {
+            close(pipefd[1]);
+            fd_in = pipefd[0];
+        }
 
-    // wait for the last child process to finish
-    if (!bg) {
-        do {
-            waitpid(pid, &status, WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-    } else {
-        bg_jobs[num_jobs++] = pid;
-        printf("[%d] %d\n", num_jobs, pid);
+        // wait for the last child process to finish
+        if (i == num_cmds - 1)
+        {
+            if (!bg) {
+                do {
+                    waitpid(pid, &status, WUNTRACED);
+                } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+            } else {
+                bg_jobs[num_jobs++] = pid;
+                printf("[%d] %d\n", num_jobs, pid);
+            }
+        }
     }
 }
 
-//textbook only modified to fit project 
+
 int builtin_command(char **argv)
 {
     if (!strcmp(argv[0], "quit")){
-        printf("Exiting");
+        printf("Exiting\n");
         exit(1);
     }
-    if (!strcmp(argv[0], "wait")){
-        int i;
-        for (i = 0; i < num_jobs; i++)
-        {
-            waitpid(bg_jobs[i], NULL, 0); // wait for the background job to terminate
-            printf("[%d] Done\t %d\n", i+1, bg_jobs[i]); // print the job number and PID to the console
-        }
-        num_jobs = 0; // reset the number of background jobs to 0
+    if (!strcmp(argv[0], "cd")) {
+        if (argv[1] == NULL)
+            chdir(getenv("HOME"));
+        else
+            chdir(argv[1]);
         return 1;
     }
     if (!strcmp(argv[0], "help"))
@@ -144,7 +174,7 @@ int builtin_command(char **argv)
         printf("The following are built in:\n");
         printf("cd [dir] -- change the current working directory\n");
         printf("pwd -- print the current working directory\n");
-        printf("wait-- to wait for all background commands to teriminate before next command\n");
+        printf("wait-- to wait for all background commands to terminate before next command\n");
         printf("help -- display this help message\n");
         return 1;
     }
@@ -154,10 +184,6 @@ int builtin_command(char **argv)
         if (getcwd(cwd, sizeof(cwd)) != NULL)
         {
             printf("%s\n", cwd);
-        }
-        else
-        {
-            perror("getcwd() error");
         }
         return 1;
     }
@@ -175,8 +201,20 @@ int builtin_command(char **argv)
     }
     if (!strcmp(argv[0], "&"))
         return 1;
+     if (!strcmp(argv[0], "wait"))
+    {
+        int i, status;
+        for (i = 0; i < num_jobs; i++) {
+            waitpid(bg_jobs[i], &status, WUNTRACED);
+            printf("[%d] %d exited with status %d\n", i+1, bg_jobs[i], WEXITSTATUS(status));
+        }
+        num_jobs = 0;
+        return 1;
+    }
+    
+    
+    
     return 0;
-
 }
 
 int parseline(char *buf, char **argv)
@@ -184,6 +222,8 @@ int parseline(char *buf, char **argv)
     char *delim;
     int argc;
     int bg;
+    int fd_in = STDIN_FILENO;  // default input is stdin
+    int fd_out = STDOUT_FILENO;  // default output is stdout
 
     buf[strlen(buf) - 1] = ' ';
     while (*buf && (*buf == ' '))
@@ -192,6 +232,31 @@ int parseline(char *buf, char **argv)
     argc = 0;
     while ((delim = strchr(buf, ' ')))
     {
+        // handle input redirection
+        if (*delim == '<') {
+            *delim = '\0';
+            fd_in = open(buf, O_RDONLY);
+            if (fd_in < 0) {
+                fprintf(stderr, "%s: No such file or directory\n", buf);
+                return -1;
+            }
+            buf = delim + 1;
+            continue;
+        }
+
+        // handle output redirection
+        if (*delim == '>') {
+            *delim = '\0';
+            fd_out = open(buf, O_WRONLY | O_CREAT | O_TRUNC);
+            if (fd_out < 0) {
+                fprintf(stderr, "%s: Error opening file\n", buf);
+                return -1;
+            }
+            buf = delim + 1;
+            continue;
+        }
+
+        // handle normal arguments
         argv[argc++] = buf;
         *delim = '\0';
         buf = delim + 1;
@@ -205,10 +270,27 @@ int parseline(char *buf, char **argv)
 
     if ((bg = (*argv[argc - 1] == '&')) != 0)
         argv[--argc] = NULL;
-        bg =1;
+
+    // set input/output file descriptors
+    if (fd_in != STDIN_FILENO) {
+        if (dup2(fd_in, STDIN_FILENO) != STDIN_FILENO) {
+            fprintf(stderr, "Error setting input redirection\n");
+            return -1;
+        }
+        close(fd_in);
+    }
+
+    if (fd_out != STDOUT_FILENO) {
+        if (dup2(fd_out, STDOUT_FILENO) != STDOUT_FILENO) {
+            fprintf(stderr, "Error setting output redirection\n");
+            return -1;
+        }
+        close(fd_out);
+    }
 
     return bg;
 }
+
 
 void unix_error(char *msg)
 {
