@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #define MAXLINE 8192
 #define MAXARGS 128
@@ -21,6 +22,7 @@ int builtin_command(char **argv);
 void unix_error(char *msg);
 char *Fgets(char *ptr, int n, FILE *stream);
 
+// Most of the structure was taken from textbook bryant o'hallaron pg 755
 
 int main()
 {
@@ -55,6 +57,7 @@ void eval(char *cmdline)
         return;
 
     // parse command line for multiple commands separated by pipes
+
     char *cmd_ptrs[MAXARGS];
     cmd_ptrs[num_cmds++] = commands[0];
     for (i = 1; commands[i] != NULL; i++)
@@ -66,6 +69,7 @@ void eval(char *cmdline)
         }
         else if (strcmp(commands[i], ">") == 0)
         {
+            //https://www.cs.helsinki.fi/u/gurtov/c02/file_sys.htm
             commands[i] = NULL;
             int fd = open(commands[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (fd == -1) {
@@ -88,6 +92,7 @@ void eval(char *cmdline)
         }
     }
 
+// inspired from pg 789 - 793 bryant o'hallaron and https://www.geeksforgeeks.org/making-linux-shell-c/
     int fd_in = STDIN_FILENO;
     for (i = 0; i < num_cmds; i++)
     {
@@ -102,6 +107,7 @@ void eval(char *cmdline)
         }
 
         // create child process for current command
+        
         if ((pid = fork()) == 0)
         {
             if (i < num_cmds - 1)
@@ -114,11 +120,13 @@ void eval(char *cmdline)
             if (fd_in != STDIN_FILENO)
             {
                 // connect input of current process to output of previous process
+                // pg 909 bryant 
                 dup2(fd_in, STDIN_FILENO);
                 close(fd_in);
             }
 
             // execute command
+            //https://cs.brown.edu/courses/cs033/shell1/
             char* path = getenv("PATH");
             char* p = strtok(path, ":");
             char prog[MAXARGS];
@@ -153,7 +161,7 @@ void eval(char *cmdline)
     }
 }
 
-
+// copied from pg 754 but modifed bryant o'hallaron 
 int builtin_command(char **argv)
 {
     if (!strcmp(argv[0], "quit")){
@@ -217,6 +225,7 @@ int builtin_command(char **argv)
     return 0;
 }
 
+//mostly from textbook
 int parseline(char *buf, char **argv)
 {
     char *delim;
@@ -245,9 +254,10 @@ int parseline(char *buf, char **argv)
         }
 
         // handle output redirection
+        //https://people.cs.pitt.edu/~delis/CS1550-Spring13/cs1550-recitation2.pdf
         if (*delim == '>') {
             *delim = '\0';
-            fd_out = open(buf, O_WRONLY | O_CREAT | O_TRUNC);
+            fd_out = open(buf, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
             if (fd_out < 0) {
                 fprintf(stderr, "%s: Error opening file\n", buf);
                 return -1;
@@ -272,6 +282,7 @@ int parseline(char *buf, char **argv)
         argv[--argc] = NULL;
 
     // set input/output file descriptors
+    //https://linuxhint.com/dup2_system_call_c/
     if (fd_in != STDIN_FILENO) {
         if (dup2(fd_in, STDIN_FILENO) != STDIN_FILENO) {
             fprintf(stderr, "Error setting input redirection\n");
@@ -291,7 +302,7 @@ int parseline(char *buf, char **argv)
     return bg;
 }
 
-
+//more from textbook
 void unix_error(char *msg)
 {
     fprintf(stderr, "%s\n", msg);
