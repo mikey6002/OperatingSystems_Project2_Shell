@@ -11,6 +11,8 @@
 #define MAXARGS 128
 #define MAXJOBS 10
 
+//from textbook
+// further reaserch from manpage https://man7.org/linux/man-pages/man7/environ.7.html
 extern char **environ;
 
 pid_t bg_jobs[MAXJOBS];
@@ -26,7 +28,7 @@ char *Fgets(char *ptr, int n, FILE *stream);
 
 int main()
 {
-    printf("Hello and Welcome to my Shell!\n");
+    printf("Hello and Welcome to my Shell Of DOOM!\n");
     char cmdline[MAXLINE];
     while (1)
     {
@@ -45,7 +47,7 @@ void eval(char *cmdline)
 {
     char *commands[MAXARGS];
     char buf[MAXLINE];
-    int bg, i, status, num_cmds = 0, pipefd[2];
+    int bg, i, status, num_cmds = 0;
     pid_t pid;
 
     strcpy(buf, cmdline);
@@ -57,7 +59,6 @@ void eval(char *cmdline)
         return;
 
     // parse command line for multiple commands separated by pipes
-
     char *cmd_ptrs[MAXARGS];
     cmd_ptrs[num_cmds++] = commands[0];
     for (i = 1; commands[i] != NULL; i++)
@@ -67,66 +68,67 @@ void eval(char *cmdline)
             commands[i] = NULL;
             cmd_ptrs[num_cmds++] = commands[i+1];
         }
-        else if (strcmp(commands[i], ">") == 0)
-        {
-            //https://www.cs.helsinki.fi/u/gurtov/c02/file_sys.htm
-            commands[i] = NULL;
-            int fd = open(commands[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd == -1) {
-                fprintf(stderr, "Error opening file %s for writing\n", commands[i+1]);
-                return;
-            }
-            dup2(fd, STDOUT_FILENO);
-            close(fd);
-        }
         else if (strcmp(commands[i], "<") == 0)
         {
             commands[i] = NULL;
-            int fd = open(commands[i+1], O_RDONLY);
-            if (fd == -1) {
-                fprintf(stderr, "Error opening file %s for reading\n", commands[i+1]);
+            int fd_in = open(commands[i+1], O_RDONLY);
+            if (fd_in < 0)
+            {
+                fprintf(stderr, "Error: cannot open input file %s\n", commands[i+1]);
                 return;
             }
-            dup2(fd, STDIN_FILENO);
-            close(fd);
+            dup2(fd_in, STDIN_FILENO);
+            close(fd_in);
+        }
+        else if (strcmp(commands[i], ">") == 0)
+        {
+        //https://www.cs.helsinki.fi/u/gurtov/c02/file_sys.htm
+            commands[i] = NULL;
+            int fd_out = open(commands[i+1], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+            if (fd_out < 0)
+            {
+                fprintf(stderr, "Error: cannot open output file %s\n", commands[i+1]);
+                return;
+            }
+            dup2(fd_out, STDOUT_FILENO);
+            close(fd_out);
         }
     }
 
-// inspired from pg 789 - 793 bryant o'hallaron and https://www.geeksforgeeks.org/making-linux-shell-c/
+    int pipes[num_cmds - 1][2];
+
+    for (i = 0; i < num_cmds - 1; i++)
+    {
+        if (pipe(pipes[i]) == -1)
+        {
+            fprintf(stderr, "Pipe failed\n");
+            return;
+        }
+    }
+
     int fd_in = STDIN_FILENO;
+
     for (i = 0; i < num_cmds; i++)
     {
-        // create pipe for current command
-        if (i < num_cmds - 1)
-        {
-            if (pipe(pipefd) == -1)
-            {
-                fprintf(stderr, "Pipe failed\n");
-                return;
-            }
-        }
-
         // create child process for current command
-        
         if ((pid = fork()) == 0)
         {
             if (i < num_cmds - 1)
             {
                 // connect output of current process to input of next process
-                dup2(pipefd[1], STDOUT_FILENO);
-                close(pipefd[0]);
-                close(pipefd[1]);
+                dup2(pipes[i][1], STDOUT_FILENO);
+                close(pipes[i][0]);
+                close(pipes[i][1]);
             }
             if (fd_in != STDIN_FILENO)
             {
                 // connect input of current process to output of previous process
-                // pg 909 bryant 
                 dup2(fd_in, STDIN_FILENO);
                 close(fd_in);
             }
 
             // execute command
-            //https://cs.brown.edu/courses/cs033/shell1/
+            //https://www.ibm.com/docs/en/i/7.1?topic=functions-getenv-search-environment-variables
             char* path = getenv("PATH");
             char* p = strtok(path, ":");
             char prog[MAXARGS];
@@ -140,10 +142,13 @@ void eval(char *cmdline)
         }
 
         // close pipes in parent process
+        if (fd_in != STDIN_FILENO)
+            close(fd_in);
+
         if (i < num_cmds - 1)
         {
-            close(pipefd[1]);
-            fd_in = pipefd[0];
+            close(pipes[i][1]);
+            fd_in = pipes[i][0];
         }
 
         // wait for the last child process to finish
@@ -158,6 +163,13 @@ void eval(char *cmdline)
                 printf("[%d] %d\n", num_jobs, pid);
             }
         }
+    }
+
+    // close all pipes in parent process
+    for (i = 0; i < num_cmds - 1; i++)
+    {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
     }
 }
 
